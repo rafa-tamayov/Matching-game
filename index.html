@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Matcher Float</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            min-height: 100vh;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .float-item {
+            position: absolute;
+            cursor: pointer;
+            will-change: transform;
+            touch-action: manipulation;
+        }
+
+        /* Giant emoji card hover state */
+        .emoji-card {
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .emoji-card:hover {
+            transform: scale(1.18) rotate(6deg);
+        }
+
+        /* Large white text card hover state */
+        .text-card {
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+        }
+        .text-card:hover {
+            transform: scale(1.08);
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Active selection glow */
+        .selected-glow {
+            outline: 5px solid #f59e0b !important;
+            outline-offset: 4px;
+            z-index: 50 !important;
+        }
+
+        /* Error shaking effect */
+        @keyframes shakeError {
+            0%, 100% { transform: translateX(0) scale(1); }
+            20%, 60% { transform: translateX(-10px) scale(1.05); }
+            40%, 80% { transform: translateX(10px) scale(1.05); }
+        }
+        .error-shake {
+            animation: shakeError 0.4s ease-in-out;
+            outline: 5px solid #ef4444 !important;
+            outline-offset: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between p-3 md:p-6 min-h-screen text-slate-100">
+
+    <header class="w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between bg-white/10 backdrop-blur-md rounded-3xl p-4 shadow-2xl mb-4 border border-white/20">
+        <div class="flex items-center space-x-3 mb-3 md:mb-0">
+            <div class="bg-gradient-to-tr from-amber-400 to-orange-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg text-2xl font-black">
+                🍔
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-wide text-white">Food Matcher Float</h1>
+                <p class="text-xs text-amber-200/80 font-medium">Match the food pictures with their English names</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3 text-sm md:text-base">
+            <div class="flex items-center space-x-2 bg-emerald-500/20 border border-emerald-400/40 px-4 py-2 rounded-2xl text-emerald-300 font-bold">
+                <i class="fa-solid fa-circle-check"></i>
+                <span id="score">0/10</span>
+            </div>
+            <div class="flex items-center space-x-2 bg-rose-500/20 border border-rose-400/40 px-4 py-2 rounded-2xl text-rose-300 font-bold">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span id="errors">0</span>
+            </div>
+            <div class="flex items-center space-x-2 bg-sky-500/20 border border-sky-400/40 px-4 py-2 rounded-2xl text-sky-300 font-bold">
+                <i class="fa-solid fa-stopwatch"></i>
+                <span id="timer">00:00</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="gameContainer" class="w-full max-w-5xl flex-grow relative bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border-4 border-white/15 overflow-hidden min-h-[500px] h-[65vh]">
+        
+        <!-- Floating playground element -->
+        <div id="sandbox" class="absolute inset-0 pointer-events-auto"></div>
+
+        <!-- Start/End Game Overlay Modal -->
+        <div id="overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-lg flex flex-col items-center justify-center z-50 p-6 text-center">
+            <div class="bg-gradient-to-b from-slate-800 to-slate-900 p-8 rounded-3xl shadow-2xl max-w-md w-full border border-white/20">
+                <div class="text-6xl mb-4 animate-bounce">🍕</div>
+                <h2 id="overlayTitle" class="text-3xl font-black text-white mb-2">Floating Food Match!</h2>
+                <p id="overlayDesc" class="text-sm text-slate-300 mb-6 leading-relaxed">
+                    10 food emojis and 10 English words are floating around.<br><br>
+                    <strong>Click an emoji and match it with its correct word!</strong>
+                </p>
+                <button id="startBtn" class="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-lg rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>START GAME!</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-5xl mx-auto mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-300 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+        <div class="flex items-center space-x-2 mb-2 sm:mb-0">
+            <i class="fa-solid fa-lightbulb text-amber-400 text-base"></i>
+            <span>Click a emoji, then click its corresponding English name card.</span>
+        </div>
+        <button id="restartBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl shadow border border-white/10 transition flex items-center space-x-2">
+            <i class="fa-solid fa-rotate-right"></i>
+            <span>Restart</span>
+        </button>
+    </footer>
+
+    <script>
+        // 10 Food Data Pairs
+        const foodData = [
+            { id: 1, name: 'APPLE', emoji: '🍎' },
+            { id: 2, name: 'PIZZA', emoji: '🍕' },
+            { id: 3, name: 'BURGER', emoji: '🍔' },
+            { id: 4, name: 'ICE CREAM', emoji: '🍦' },
+            { id: 5, name: 'TACO', emoji: '🌮' },
+            { id: 6, name: 'DONUT', emoji: '🍩' },
+            { id: 7, name: 'CARROT', emoji: '🥕' },
+            { id: 8, name: 'FRIES', emoji: '🍟' },
+            { id: 9, name: 'WATERMELON', emoji: '🍉' },
+            { id: 10, name: 'BANANA', emoji: '🍌' }
+        ];
+
+        let gameState = {
+            isPlaying: false,
+            score: 0,
+            errors: 0,
+            seconds: 0,
+            timerInterval: null,
+            animationFrameId: null,
+            selectedItem: null,
+            items: []
+        };
+
+        const sandbox = document.getElementById('sandbox');
+        const gameContainer = document.getElementById('gameContainer');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayDesc = document.getElementById('overlayDesc');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreDisplay = document.getElementById('score');
+        const errorsDisplay = document.getElementById('errors');
+        const timerDisplay = document.getElementById('timer');
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', resetGame);
+
+        function startGame() {
+            overlay.classList.add('hidden');
+            
+            gameState = {
+                isPlaying: true,
+                score: 0,
+                errors: 0,
+                seconds: 0,
+                timerInterval: null,
+                animationFrameId: null,
+                selectedItem: null,
+                items: []
+            };
+
+            updateStats();
+            startTimer();
+            spawnItems();
+            startAnimationLoop();
+        }
+
+        function resetGame() {
+            cancelAnimationFrame(gameState.animationFrameId);
+            clearInterval(gameState.timerInterval);
+            sandbox.innerHTML = '';
+            
+            overlay.classList.remove('hidden');
+            overlayTitle.innerText = "Floating Food Match!";
+            overlayDesc.innerHTML = "10 food emojis and 10 English words are floating around.<br><br><strong>Click an emoji and match it with its correct word!</strong>";
+            startBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i><span>Play Again!</span>';
+        }
+
+        function startTimer() {
+            gameState.timerInterval = setInterval(() => {
+                gameState.seconds++;
+                let mins = Math.floor(gameState.seconds / 60).toString().padStart(2, '0');
+                let secs = (gameState.seconds % 60).toString().padStart(2, '0');
+                timerDisplay.innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function updateStats() {
+            scoreDisplay.innerText = `${gameState.score}/10`;
+            errorsDisplay.innerText = gameState.errors;
+        }
+
+        function spawnItems() {
+            sandbox.innerHTML = '';
+            let entities = [];
+
+            const cWidth = gameContainer.clientWidth;
+            const cHeight = gameContainer.clientHeight;
+
+            foodData.forEach((food) => {
+                // Giant Emoji Card
+                entities.push({
+                    type: 'emoji',
+                    matchId: food.id,
+                    content: `<div class="emoji-card p-2 text-6xl md:text-7xl filter drop-shadow-2xl select-none leading-none">${food.emoji}</div>`,
+                    x: Math.random() * (cWidth - 120) + 10,
+                    y: Math.random() * (cHeight - 120) + 10,
+                    vx: (Math.random() - 0.5) * 2.5,
+                    vy: (Math.random() - 0.5) * 2.5,
+                    width: 90,
+                    height: 90,
+                    matched: false
+                });
+
+                // Solid White Text Card
+                entities.push({
+                    type: 'word',
+                    matchId: food.id,
+                    content: `<div class="text-card px-6 py-3.5 bg-white text-slate-900 rounded-2xl shadow-2xl border-4 border-amber-400 font-black text-lg md:text-xl tracking-wider text-center select-none uppercase shadow-amber-500/10">${food.name}</div>`,
+                    x: Math.random() * (cWidth - 160) + 10,
+                    y: Math.random() * (cHeight - 80) + 10,
+                    vx: (Math.random() - 0.5) * 2.5,
+                    vy: (Math.random() - 0.5) * 2.5,
+                    width: 150,
+                    height: 60,
+                    matched: false
+                });
+            });
+
+            // Randomize array
+            entities.sort(() => Math.random() - 0.5);
+
+            entities.forEach((ent) => {
+                const el = document.createElement('div');
+                el.className = 'float-item';
+                el.innerHTML = ent.content;
+                
+                el.addEventListener('click', (e) => handleItemClick(ent, el));
+                el.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handleItemClick(ent, el);
+                }, { passive: false });
+
+                sandbox.appendChild(el);
+                ent.element = el;
+            });
+
+            gameState.items = entities;
+        }
+
+        function handleItemClick(ent, el) {
+            if (!gameState.isPlaying || ent.matched) return;
+
+            // Deselect if clicking the same item
+            if (gameState.selectedItem === ent) {
+                el.classList.remove('selected-glow');
+                gameState.selectedItem = null;
+                return;
+            }
+
+            if (!gameState.selectedItem) {
+                // First Selection
+                gameState.selectedItem = ent;
+                el.classList.add('selected-glow');
+            } else {
+                // Second Selection
+                const prev = gameState.selectedItem;
+                const prevEl = prev.element;
+
+                if (prev.matchId === ent.matchId && prev.type !== ent.type) {
+                    // MATCH SUCCESS
+                    prev.matched = true;
+                    ent.matched = true;
+
+                    prevEl.classList.remove('selected-glow');
+                    prevEl.classList.add('opacity-0', 'scale-0', 'transition-all', 'duration-300');
+                    el.classList.add('opacity-0', 'scale-0', 'transition-all', 'duration-300');
+
+                    gameState.score++;
+                    updateStats();
+                    gameState.selectedItem = null;
+
+                    if (gameState.score === 10) {
+                        endGame(true);
+                    }
+                } else {
+                    // MATCH ERROR
+                    prevEl.classList.remove('selected-glow');
+                    el.classList.add('error-shake');
+                    prevEl.classList.add('error-shake');
+
+                    setTimeout(() => {
+                        el.classList.remove('error-shake');
+                        prevEl.classList.remove('error-shake');
+                    }, 400);
+
+                    gameState.errors++;
+                    updateStats();
+                    gameState.selectedItem = null;
+                }
+            }
+        }
+
+        function startAnimationLoop() {
+            function animate() {
+                if (!gameState.isPlaying) return;
+
+                const cWidth = gameContainer.clientWidth;
+                const cHeight = gameContainer.clientHeight;
+
+                gameState.items.forEach(ent => {
+                    if (ent.matched) return;
+
+                    ent.x += ent.vx;
+                    ent.y += ent.vy;
+
+                    // Bounce off boundary walls
+                    if (ent.x <= 5) {
+                        ent.x = 5;
+                        ent.vx = Math.abs(ent.vx);
+                    } else if (ent.x + ent.width >= cWidth - 5) {
+                        ent.x = cWidth - ent.width - 5;
+                        ent.vx = -Math.abs(ent.vx);
+                    }
+
+                    if (ent.y <= 5) {
+                        ent.y = 5;
+                        ent.vy = Math.abs(ent.vy);
+                    } else if (ent.y + ent.height >= cHeight - 5) {
+                        ent.y = cHeight - ent.height - 5;
+                        ent.vy = -Math.abs(ent.vy);
+                    }
+
+                    ent.element.style.transform = `translate3d(${ent.x}px, ${ent.y}px, 0)`;
+                });
+
+                gameState.animationFrameId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function endGame(won) {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            cancelAnimationFrame(gameState.animationFrameId);
+
+            setTimeout(() => {
+                overlay.classList.remove('hidden');
+                if (won) {
+                    overlayTitle.innerText = "VICTORY! 🎉";
+                    overlayDesc.innerHTML = `You matched all food pairs!<br><br>Time: <strong>${timerDisplay.innerText}</strong><br>Errors: <strong>${gameState.errors}</strong>`;
+                    startBtn.innerHTML = '<i class="fa-solid fa-trophy"></i><span>Play Again!</span>';
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
